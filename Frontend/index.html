@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Hệ thống điểm danh AI</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      body {
+        display: flex;
+        margin: 0;
+        font-family: "Inter", sans-serif;
+        height: 100vh;
+        overflow: hidden;
+        background-color: #f8fafc;
+      }
+
+      .sidebar {
+        width: 280px;
+        background: linear-gradient(180deg, #1e3a8a, #1e40af);
+        color: white;
+        display: flex;
+        flex-direction: column;
+        padding: 24px;
+        box-shadow: 4px 0 16px rgba(0, 0, 0, 0.2);
+        transition: width 0.3s ease;
+      }
+
+      .sidebar:hover {
+        width: 290px;
+      }
+
+      .sidebar h4 {
+        font-size: 1.6rem;
+        font-weight: 700;
+        margin-bottom: 2rem;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        letter-spacing: 0.5px;
+      }
+
+      .sidebar a {
+        color: white;
+        text-decoration: none;
+        padding: 14px 18px;
+        border-radius: 10px;
+        margin-bottom: 10px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        transition: all 0.3s ease;
+        font-size: 1.05rem;
+        font-weight: 500;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .sidebar a::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 100%;
+        height: 100%;
+        background: rgba(255, 255, 255, 0.1);
+        transition: left 0.3s ease;
+      }
+
+      .sidebar a:hover::before,
+      .sidebar a.active::before {
+        left: 0;
+      }
+
+      .sidebar a:hover,
+      .sidebar a.active {
+        background-color: #3b82f6;
+        transform: translateX(6px);
+      }
+
+      .main {
+        flex-grow: 1;
+        padding: 40px;
+        overflow-y: auto;
+        background: linear-gradient(145deg, #e0f2fe, #ffffff);
+        transition: background 0.5s ease;
+      }
+
+      .hidden {
+        display: none;
+      }
+
+      .video-container {
+        margin-top: 28px;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+        width: 800px;
+        height: 600px;
+        transition: all 0.4s ease;
+        background-color: #111827;
+        position: relative;
+      }
+
+      .video-container:hover {
+        transform: scale(1.02);
+      }
+
+      .fade-in {
+        animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(30px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      h3,
+      h4 {
+        font-size: 1.9rem;
+        font-weight: 700;
+        color: #1e3a8a;
+        margin-bottom: 1.8rem;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        letter-spacing: 0.3px;
+      }
+
+      h4 {
+        font-size: 1.6rem;
+      }
+
+      .form-control {
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        padding: 12px;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        background-color: #fff;
+        box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
+      }
+
+      .form-control:focus {
+        border-color: #2563eb;
+        box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.2);
+        outline: none;
+      }
+
+      .btn-primary,
+      .btn-success {
+        border-radius: 10px;
+        padding: 12px 24px;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .btn-primary {
+        background-color: #2563eb;
+        border-color: #2563eb;
+      }
+
+      .btn-success {
+        background-color: #16a34a;
+        border-color: #16a34a;
+      }
+
+      .btn-primary:hover,
+      .btn-success:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      }
+
+      /* Enhanced Schedule Table Styles */
+      .schedule-table {
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.1);
+        background-color: #fff;
+        transition: all 0.3s ease;
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+      }
+
+      .schedule-table th {
+        background: linear-gradient(90deg, #1e3a8a, #2563eb);
+        color: white;
+        font-weight: 600;
+        padding: 16px;
+        font-size: 1rem;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+      }
+
+      .schedule-table td {
+        padding: 16px;
+        font-size: 0.95rem;
+        vertical-align: middle;
+        transition: all 0.3s;
+        border-bottom: 1px solid #e5e7eb;
+      }
+
+      .schedule-table tr:last-child td {
+        border-bottom: none;
+      }
+
+      .time-slot {
+        font-weight: bold;
+        background-color: #f3f4f6;
+        color: #1f2937;
+      }
+
+      .class-cell {
+        background-color: #e0f2fe;
+        color: #0369a1;
+        border-left: 4px solid #0ea5e9;
+        border-radius: 4px;
+        margin: 4px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .class-cell:hover {
+        background-color: #bae6fd;
+        transform: scale(1.02);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        cursor: pointer;
+      }
+
+      .class-cell::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.2) 0%,
+          rgba(255, 255, 255, 0) 50%
+        );
+      }
+
+      .class-cell.empty {
+        background-color: transparent;
+        border-left: none;
+      }
+
+      /* Color variations for different classes */
+      .class-cell.type-1 {
+        background-color: #e0f2fe;
+        border-color: #0ea5e9;
+        color: #0369a1;
+      }
+      .class-cell.type-2 {
+        background-color: #dcfce7;
+        border-color: #22c55e;
+        color: #166534;
+      }
+      .class-cell.type-3 {
+        background-color: #fef3c7;
+        border-color: #f59e0b;
+        color: #92400e;
+      }
+      .class-cell.type-4 {
+        background-color: #fee2e2;
+        border-color: #ef4444;
+        color: #991b1b;
+      }
+      .class-cell.type-5 {
+        background-color: #ede9fe;
+        border-color: #8b5cf6;
+        color: #5b21b6;
+      }
+
+      #uploadResult {
+        font-weight: 500;
+        padding: 10px 14px;
+        border-radius: 10px;
+        background-color: #dcfce7;
+        color: #166534;
+        display: inline-block;
+        margin-top: 1rem;
+        transition: opacity 0.3s ease;
+      }
+
+      .stream-frame {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        border-radius: 20px;
+      }
+
+      .video-container::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.05);
+        pointer-events: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar">
+      <h4>📚 Menu</h4>
+      <a href="#" id="nav-upload" class="active">📤 Upload ảnh</a>
+      <a href="#" id="nav-schedule">📅 Thời khóa biểu</a>
+    </div>
+
+    <div class="main">
+      <!-- Upload -->
+      <div id="page-upload" class="fade-in">
+        <h3>📤 Upload ảnh sinh viên</h3>
+        <form id="uploadForm" class="mt-4">
+          <div class="mb-4">
+            <label class="form-label fw-medium">Mã sinh viên:</label>
+            <input type="text" id="studentCode" class="form-control" required />
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-medium">Ảnh khuôn mặt:</label>
+            <input
+              type="file"
+              id="studentImage"
+              class="form-control"
+              accept="image/*"
+              required
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">Gửi ảnh</button>
+          <p id="uploadResult" class="mt-3 text-success"></p>
+        </form>
+      </div>
+
+      <!-- Schedule -->
+      <div id="page-schedule" class="hidden fade-in">
+        <h3>📅 Thời khóa biểu</h3>
+        <table class="schedule-table mt-4">
+          <thead>
+            <tr>
+              <th>Khung giờ</th>
+              <th>Thứ 2</th>
+              <th>Thứ 3</th>
+              <th>Thứ 4</th>
+              <th>Thứ 5</th>
+              <th>Thứ 6</th>
+              <th>Thứ 7</th>
+              <th>Chủ nhật</th>
+            </tr>
+          </thead>
+          <tbody id="scheduleTable"></tbody>
+        </table>
+      </div>
+
+      <!-- Attendance -->
+      <div id="page-attendance" class="hidden fade-in">
+        <h4>
+          📷 Điểm danh môn: <span id="subjectName" class="text-primary"></span>
+        </h4>
+
+        <div class="video-container my-4">
+          <img id="streamFrame" class="stream-frame" />
+        </div>
+
+        <button id="saveAttendance" class="btn btn-success mb-4">
+          💾 Lưu điểm danh
+        </button>
+
+        <table class="table table-striped table-bordered bg-white">
+          <thead>
+            <tr>
+              <th>Mã SV</th>
+              <th>Họ tên</th>
+              <th>Trạng thái</th>
+            </tr>
+          </thead>
+          <tbody id="studentList"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <script>
+      const navUpload = document.getElementById("nav-upload");
+      const navSchedule = document.getElementById("nav-schedule");
+      const pageUpload = document.getElementById("page-upload");
+      const pageSchedule = document.getElementById("page-schedule");
+      const pageAttendance = document.getElementById("page-attendance");
+      const scheduleTable = document.getElementById("scheduleTable");
+      const studentList = document.getElementById("studentList");
+      const subjectName = document.getElementById("subjectName");
+      const streamFrame = document.getElementById("streamFrame");
+      const saveAttendanceBtn = document.getElementById("saveAttendance");
+
+      let recognizedStudents = new Set();
+      let currentClassId = null;
+
+      function showPage(page) {
+        [pageUpload, pageSchedule, pageAttendance].forEach((p) =>
+          p.classList.add("hidden")
+        );
+        page.classList.remove("hidden");
+      }
+
+      navUpload.onclick = () => {
+        showPage(pageUpload);
+        navUpload.classList.add("active");
+        navSchedule.classList.remove("active");
+        streamFrame.src = ""; // Stop stream when switching
+      };
+
+      navSchedule.onclick = () => {
+        showPage(pageSchedule);
+        navUpload.classList.remove("active");
+        navSchedule.classList.add("active");
+        fetchSchedule();
+        streamFrame.src = ""; // Stop stream when switching
+      };
+
+      // Fetch schedule from API
+      async function fetchSchedule() {
+        try {
+          const res = await fetch("http://127.0.0.1:5000/api/schedule");
+          const data = await res.json();
+          console.log("Dữ liệu từ API:", data);
+          renderSchedule(data);
+        } catch (error) {
+          console.error("Error fetching schedule:", error);
+          scheduleTable.innerHTML =
+            "<tr><td colspan='8'>Lỗi khi tải thời khóa biểu</td></tr>";
+        }
+      }
+
+      // Enhanced renderSchedule function with better styling
+      function renderSchedule(data) {
+        console.log("Bắt đầu render với dữ liệu:", data);
+
+        if (!Array.isArray(data) || data.length === 0) {
+          console.error("Dữ liệu lịch học rỗng");
+          scheduleTable.innerHTML =
+            '<tr><td colspan="8" class="text-center py-4">Không có dữ liệu lịch học</td></tr>';
+          return;
+        }
+
+        // Hàm chuẩn hóa tên ngày
+        const normalizeDay = (str) => {
+          return str
+            .trim()
+            .toLowerCase()
+            .replace(/(thứ\s*|chủ\s*)/, (match) => match.replace(/\s/g, ""))
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "");
+        };
+
+        const daysOfWeek = [
+          "Thứ 2",
+          "Thứ 3",
+          "Thứ 4",
+          "Thứ 5",
+          "Thứ 6",
+          "Thứ 7",
+          "Chủ nhật",
+        ];
+
+        // Create time slots from 7:00 to 17:00 (11 slots)
+        const timeSlots = Array.from({ length: 11 }, (_, i) => {
+          const hour = 7 + i;
+          return `${hour}:00-${hour + 1}:00`;
+        });
+
+        const occupiedSlots = {};
+        scheduleTable.innerHTML = "";
+
+        timeSlots.forEach((timeSlot, slotIndex) => {
+          const row = document.createElement("tr");
+          const timeCell = document.createElement("td");
+          timeCell.textContent = timeSlot;
+          timeCell.className = "time-slot";
+          row.appendChild(timeCell);
+
+          daysOfWeek.forEach((day) => {
+            const slotKey = `${day}-${slotIndex}`;
+            if (occupiedSlots[slotKey]) return;
+
+            const cell = document.createElement("td");
+            cell.className = "class-cell empty";
+
+            // Find matching schedule item
+            const scheduleItem = data.find((item) => {
+              if (!item?.time) {
+                console.warn("Mục không có thời gian:", item);
+                return false;
+              }
+
+              const parts = item.time.split(" ");
+              if (parts.length < 3) {
+                console.warn("Định dạng thời gian không hợp lệ:", item.time);
+                return false;
+              }
+
+              const itemDay = parts.slice(0, -1).join(" ");
+              const timeRange = parts[parts.length - 1];
+
+              if (!timeRange.includes("-")) {
+                console.warn("Khoảng thời gian không hợp lệ:", timeRange);
+                return false;
+              }
+
+              const [startTime, endTime] = timeRange.split("-");
+              const slotStartHour = parseInt(
+                timeSlot.split("-")[0].split(":")[0]
+              );
+              const itemStartHour = parseInt(startTime.split(":")[0]);
+              const itemEndHour = parseInt(endTime.split(":")[0]);
+
+              return (
+                normalizeDay(itemDay) === normalizeDay(day) &&
+                slotStartHour >= itemStartHour &&
+                slotStartHour < itemEndHour
+              );
+            });
+
+            if (scheduleItem) {
+              console.log("Tìm thấy môn học:", scheduleItem);
+              const parts = scheduleItem.time.split(" ");
+              const timeRange = parts[parts.length - 1];
+              const [startTime, endTime] = timeRange.split("-");
+              const startHour = parseInt(startTime.split(":")[0]);
+              const endHour = parseInt(endTime.split(":")[0]);
+              const rowspan = endHour - startHour;
+
+              cell.className = `class-cell type-${
+                scheduleItem.class_id % 5 || 1
+              }`;
+              cell.innerHTML = `
+                            <div class="fw-semibold">${
+                              scheduleItem.subject
+                            }</div>
+                            <div class="text-muted small">${
+                              scheduleItem.class
+                            }</div>
+                            <div class="text-muted small mt-1">${
+                              scheduleItem.time.split(" ")[1]
+                            }</div>
+                        `;
+              cell.setAttribute("data-class-id", scheduleItem.class_id);
+              cell.setAttribute("data-subject", scheduleItem.subject);
+              cell.addEventListener("click", () =>
+                handleScheduleClick(scheduleItem)
+              );
+
+              if (rowspan > 1) {
+                cell.setAttribute("rowspan", rowspan);
+                for (let i = 1; i < rowspan; i++) {
+                  occupiedSlots[`${day}-${slotIndex + i}`] = true;
+                }
+              }
+            }
+
+            row.appendChild(cell);
+          });
+
+          scheduleTable.appendChild(row);
+        });
+      }
+
+      // Handle schedule row click
+      async function handleScheduleClick(item) {
+        subjectName.innerText = item.subject;
+        currentClassId = item.class_id;
+        showPage(pageAttendance);
+        streamFrame.src = "http://127.0.0.1:5000/stream";
+        recognizedStudents.clear();
+        studentList.innerHTML = "";
+        await fetchStudents(item.class_id);
+        startRecognitionPolling();
+      }
+
+      // Fetch students for a class
+      async function fetchStudents(classId) {
+        try {
+          const res = await fetch(
+            `http://127.0.0.1:5000/api/class/${classId}/students`
+          );
+          const data = await res.json();
+          studentList.innerHTML = "";
+          data.forEach((student) => {
+            const tr = document.createElement("tr");
+            tr.setAttribute("data-msv", student.MSV);
+            tr.innerHTML = `
+                        <td>${student.MSV}</td>
+                        <td>${student.FullName}</td>
+                        <td class="status">❌</td>
+                    `;
+            studentList.appendChild(tr);
+          });
+        } catch (error) {
+          console.error("Error fetching students:", error);
+          studentList.innerHTML =
+            "<tr><td colspan='3'>Lỗi khi tải danh sách sinh viên</td></tr>";
+        }
+      }
+
+      // Poll for recognized faces
+      async function startRecognitionPolling() {
+        const interval = setInterval(async () => {
+          if (!pageAttendance.classList.contains("hidden")) {
+            try {
+              const res = await fetch("http://127.0.0.1:5000/recognize", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ image: "" }),
+              });
+              const data = await res.json();
+              if (data.recognized) {
+                data.recognized.forEach((name) => {
+                  if (!recognizedStudents.has(name)) {
+                    recognizedStudents.add(name);
+                    const row = document.querySelector(
+                      `#studentList tr[data-msv="${name}"]`
+                    );
+                    if (row) {
+                      row.querySelector(".status").innerText = "✅";
+                    }
+                  }
+                });
+              }
+            } catch (error) {
+              console.error("Error during recognition:", error);
+            }
+          } else {
+            clearInterval(interval);
+          }
+        }, 3000);
+      }
+
+      // Upload ảnh
+      document
+        .getElementById("uploadForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          const code = document.getElementById("studentCode").value.trim();
+          const file = document.getElementById("studentImage").files[0];
+          const formData = new FormData();
+          formData.append("student_name", code);
+          formData.append("image", file);
+
+          try {
+            const res = await fetch("http://127.0.0.1:5000/upload", {
+              method: "POST",
+              body: formData,
+            });
+            const data = await res.json();
+            document.getElementById("uploadResult").innerText =
+              data.message || "Đã gửi ảnh.";
+          } catch (error) {
+            document.getElementById("uploadResult").innerText =
+              "Lỗi khi gửi ảnh.";
+            console.error("Error uploading image:", error);
+          }
+        });
+
+      // Save attendance
+      saveAttendanceBtn.addEventListener("click", async () => {
+        const attendanceData = [];
+        document.querySelectorAll("#studentList tr").forEach((row) => {
+          const msv = row.getAttribute("data-msv");
+          const name = row.children[1].innerText;
+          const status =
+            row.querySelector(".status").innerText === "✅" ? 1 : 0;
+          attendanceData.push({ MSV: msv, FullName: name, Status: status });
+        });
+
+        try {
+          const res = await fetch("http://127.0.0.1:5000/api/save_attendance", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              class_id: currentClassId,
+              subject: subjectName.innerText,
+              data: attendanceData,
+            }),
+          });
+          const result = await res.json();
+          alert(result.message || "Đã lưu điểm danh");
+        } catch (error) {
+          console.error("Error saving attendance:", error);
+          alert("Lỗi khi lưu điểm danh");
+        }
+      });
+
+      // Initial load
+      document.addEventListener("DOMContentLoaded", () => {
+        showPage(pageUpload);
+      });
+    </script>
+  </body>
+</html>
