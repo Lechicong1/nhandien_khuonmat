@@ -101,8 +101,8 @@
         border-radius: 20px;
         overflow: hidden;
         box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
-        width: 1000px; /* Tăng từ 800px lên 1000px */
-        height: 700px; /* Tăng từ 600px lên 700px */
+        width: 1000px;
+        height: 700px;
         transition: all 0.4s ease;
         background-color: #111827;
         position: relative;
@@ -353,6 +353,7 @@
               id="studentImage"
               class="form-control"
               accept="image/*"
+              multiple
               required
             />
           </div>
@@ -384,8 +385,9 @@
       <!-- Attendance -->
       <div id="page-attendance" class="hidden fade-in">
         <h4>
-          📷 Điểm danh môn: <span id="subjectName" class="text-primary"></span>
-          - Lớp: <span id="className" class="text-primary"></span>
+          📷 Điểm danh môn:
+          <span id="subjectName" class="text-primary"></span> - Lớp:
+          <span id="className" class="text-primary"></span>
         </h4>
         <button id="startFaceRecognition" class="btn btn-info mb-4">
           🤳 Điểm danh bằng khuôn mặt
@@ -428,7 +430,9 @@
       const streamFrame = document.getElementById("streamFrame");
       const videoContainer = document.getElementById("videoContainer");
       const saveAttendanceBtn = document.getElementById("saveAttendance");
-      const startFaceRecognitionBtn = document.getElementById("startFaceRecognition");
+      const startFaceRecognitionBtn = document.getElementById(
+        "startFaceRecognition"
+      );
       const hiddenCanvas = document.getElementById("hiddenCanvas");
 
       let recognizedStudents = new Set();
@@ -639,7 +643,7 @@
             studentMap.set(student.MSV, tr);
           });
 
-          document.querySelectorAll(".status-checkbox").forEach(checkbox => {
+          document.querySelectorAll(".status-checkbox").forEach((checkbox) => {
             checkbox.addEventListener("change", (event) => {
               const msv = event.target.getAttribute("data-msv");
               if (event.target.checked) {
@@ -680,7 +684,10 @@
 
       function startRecognitionPolling() {
         recognitionInterval = setInterval(async () => {
-          if (!pageAttendance.classList.contains("hidden") && !videoContainer.classList.contains("hidden")) {
+          if (
+            !pageAttendance.classList.contains("hidden") &&
+            !videoContainer.classList.contains("hidden")
+          ) {
             try {
               const base64Image = await captureFrameToBase64();
               const res = await fetch("http://127.0.0.1:5000/api/recognize", {
@@ -725,10 +732,23 @@
         .addEventListener("submit", async (e) => {
           e.preventDefault();
           const code = document.getElementById("studentCode").value.trim();
-          const file = document.getElementById("studentImage").files[0];
+          const files = document.getElementById("studentImage").files;
+
+          if (!files || files.length === 0) {
+            document.getElementById("uploadResult").innerText =
+              "Vui lòng chọn ít nhất một ảnh.";
+            return;
+          }
+
           const formData = new FormData();
           formData.append("student_name", code);
-          formData.append("image", file);
+
+          // Lưu ảnh vào thư mục dataset trước
+          const datasetDir = "dataset/" + code; // Đường dẫn tương đối, cần điều chỉnh nếu cần
+          for (let i = 0; i < files.length; i++) {
+            formData.append("images[]", files[i]);
+            // Lưu file tạm thời (client-side không thể lưu trực tiếp, nên server sẽ xử lý)
+          }
 
           try {
             const res = await fetch("http://127.0.0.1:5000/api/upload", {
@@ -755,7 +775,10 @@
           attendanceData.push({ MSV: msv, FullName: name, Status: status });
         });
 
-        console.log("Dữ liệu gửi lên:", { timetable_id: currentTimetableId, data: attendanceData });
+        console.log("Dữ liệu gửi lên:", {
+          timetable_id: currentTimetableId,
+          data: attendanceData,
+        });
 
         try {
           const res = await fetch("http://127.0.0.1:5000/api/save_attendance", {

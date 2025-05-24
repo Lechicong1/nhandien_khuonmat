@@ -10,9 +10,9 @@ from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import base64
 from insightface.app import FaceAnalysis
+import subprocess
 
 app = Flask(__name__)
-# Cấu hình CORS cho tất cả các endpoint
 CORS(app, resources={r"/*": {"origins": "*"}})
 
 DATABASE = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'dtb.db')
@@ -28,7 +28,6 @@ face_app.prepare(ctx_id=0, det_size=(640, 640), det_thresh=0.6)
 recognized_faces = {}
 start_time = time.time()
 
-# --- Nhận diện khuôn mặt từ ảnh tĩnh ---
 def recognize_faces(img):
     faces = face_app.get(img)
     recognized = []
@@ -52,25 +51,39 @@ def recognize_faces(img):
             recognized.append(best_name)
     return list(set(recognized))
 
-# --- API upload ảnh sinh viên ---
 @app.route('/api/upload', methods=['POST'])
 def upload():
     student_name = request.form.get('student_name')
     if not student_name:
         return jsonify({'status': 'error', 'message': 'Chưa cung cấp tên học sinh'}), 400
-    file = request.files.get('image')
-    if file is None:
-        return jsonify({'status': 'error', 'message': 'Chưa tải ảnh lên'}), 400
+
     student_folder = os.path.join(dataset_dir, student_name)
     os.makedirs(student_folder, exist_ok=True)
-    filename = secure_filename(file.filename)
-    if filename == '':
-        return jsonify({'status': 'error', 'message': 'Tên file không hợp lệ'}), 400
-    save_path = os.path.join(student_folder, filename)
-    file.save(save_path)
-    return jsonify({'status': 'success', 'message': 'Ảnh đã được lưu'}), 200
 
-# --- Xử lý yêu cầu OPTIONS cho /api/recognize ---
+    if 'images[]' not in request.files:
+        return jsonify({'status': 'error', 'message': 'Chưa tải ảnh lên'}), 400
+
+    files = request.files.getlist('images[]')
+    if not files or len(files) == 0:
+        return jsonify({'status': 'error', 'message': 'Chưa chọn ảnh'}), 400
+
+    for file in files:
+        if file.filename == '':
+            return jsonify({'status': 'error', 'message': 'Tên file không hợp lệ'}), 400
+        filename = secure_filename(file.filename)
+        save_path = os.path.join(student_folder, filename)
+        file.save(save_path)
+
+    # Gọi face_register.py với đường dẫn tuyệt đối
+    face_register_path = 'D:\\nhandien_khuonmat\\backend\\face_register.py'
+    try:
+        subprocess.run(['python', face_register_path], check=True)
+        message = f"Ảnh đã được lưu và dữ liệu khuôn mặt đã được cập nhật cho {student_name}."
+    except subprocess.CalledProcessError as e:
+        message = f"Ảnh đã được lưu nhưng lỗi khi cập nhật dữ liệu khuôn mặt: {str(e)}."
+
+    return jsonify({'status': 'success', 'message': message}), 200
+
 @app.route('/api/recognize', methods=['OPTIONS'])
 def recognize_options():
     response = Response()
@@ -79,7 +92,6 @@ def recognize_options():
     response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
     return response, 200
 
-# --- API điểm danh bằng ảnh base64 ---
 @app.route('/api/recognize', methods=['POST'])
 def recognize():
     data = request.get_json()
@@ -105,7 +117,6 @@ def recognize():
     except Exception as e:
         return jsonify({'status': 'error', 'message': f'Lỗi khi xử lý ảnh: {str(e)}'}), 500
 
-# --- API stream video (nhận diện thời gian thực) ---
 def gen_frames():
     global recognized_faces, start_time
     cap = cv2.VideoCapture(0)
@@ -144,17 +155,14 @@ def gen_frames():
                 recognized_faces[name] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 print(f"-> Ghi nhận: {name}")
 
-            # Vẽ khung
             cv2.rectangle(frame, (box[0], box[1]), (box[2], box[3]), (0, 255, 0), 2)
             cv2.putText(frame, name, (box[0], box[1] - 10),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
 
-        # Hiện thời gian và số người
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         cv2.putText(frame, now_str, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
         cv2.putText(frame, f"So nguoi: {len(faces)}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
 
-        # Encode frame thành MJPEG
         ret, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
         yield (b'--frame\r\n'
