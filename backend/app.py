@@ -9,45 +9,24 @@ from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 import base64
-import pandas as pd
 from insightface.app import FaceAnalysis
 
 app = Flask(__name__)
-# Cấu hình CORS để cho phép tất cả các origin cho các endpoint API
-CORS(app, resources={r"/api/*": {"origins": "*"}})
+# Cấu hình CORS cho tất cả các endpoint
+CORS(app, resources={r"/*": {"origins": "*"}})
+
 DATABASE = os.path.join(os.path.abspath(os.path.dirname(__file__)), 'dtb.db')
-print(f"Đường dẫn cơ sở dữ liệu: {DATABASE}")
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 dataset_dir = os.path.abspath(os.path.join(BASE_DIR, '..', 'dataset'))
-logs_dir = os.path.abspath(os.path.join(BASE_DIR, '..', 'logs'))
 embeddings_path = os.path.join(BASE_DIR, 'face_embeddings.pkl')
 
 os.makedirs(dataset_dir, exist_ok=True)
-os.makedirs(logs_dir, exist_ok=True)
 
 face_app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
 face_app.prepare(ctx_id=0, det_size=(640, 640), det_thresh=0.6)
 
 recognized_faces = {}
 start_time = time.time()
-
-# --- Ghi log điểm danh ---
-def log_attendance(names):
-    if not names:
-        return
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    date_str = datetime.now().strftime('%Y-%m-%d')
-    log_file = os.path.join(logs_dir, f"{date_str}.xlsx")
-
-    if os.path.exists(log_file):
-        df = pd.read_excel(log_file)
-    else:
-        df = pd.DataFrame(columns=["Name", "Timestamp"])
-
-    new_rows = pd.DataFrame([{"Name": name, "Timestamp": timestamp} for name in names])
-    df = pd.concat([df, new_rows], ignore_index=True)
-    df.to_excel(log_file, index=False)
-    print(f"✅ Đã lưu điểm danh: {names} vào {log_file}")
 
 # --- Nhận diện khuôn mặt từ ảnh tĩnh ---
 def recognize_faces(img):
@@ -74,7 +53,7 @@ def recognize_faces(img):
     return list(set(recognized))
 
 # --- API upload ảnh sinh viên ---
-@app.route('/upload', methods=['POST'])
+@app.route('/api/upload', methods=['POST'])
 def upload():
     student_name = request.form.get('student_name')
     if not student_name:
@@ -91,23 +70,40 @@ def upload():
     file.save(save_path)
     return jsonify({'status': 'success', 'message': 'Ảnh đã được lưu'}), 200
 
+# --- Xử lý yêu cầu OPTIONS cho /api/recognize ---
+@app.route('/api/recognize', methods=['OPTIONS'])
+def recognize_options():
+    response = Response()
+    response.headers['Access-Control-Allow-Origin'] = '*'
+    response.headers['Access-Control-Allow-Methods'] = 'POST'
+    response.headers['Access-Control-Allow-Headers'] = 'Content-Type'
+    return response, 200
+
 # --- API điểm danh bằng ảnh base64 ---
-@app.route('/recognize', methods=['POST'])
+@app.route('/api/recognize', methods=['POST'])
 def recognize():
     data = request.get_json()
     if not data or 'image' not in data:
         return jsonify({'status': 'error', 'message': 'Dữ liệu không đúng'}), 400
+
     img_data = data['image']
+    if not img_data:
+        return jsonify({'status': 'error', 'message': 'Dữ liệu ảnh rỗng'}), 400
+
     if ',' in img_data:
         img_data = img_data.split(',', 1)[1]
-    img_bytes = base64.b64decode(img_data)
-    np_arr = np.frombuffer(img_bytes, np.uint8)
-    img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
-    if img is None:
-        return jsonify({'status': 'error', 'message': 'Không đọc được ảnh'}), 400
-    names = recognize_faces(img)
-    log_attendance(names)
-    return jsonify({'recognized': names}), 200
+    try:
+        img_bytes = base64.b64decode(img_data)
+        np_arr = np.frombuffer(img_bytes, np.uint8)
+        if np_arr.size == 0:
+            return jsonify({'status': 'error', 'message': 'Không thể giải mã ảnh, dữ liệu rỗng'}), 400
+        img = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
+        if img is None:
+            return jsonify({'status': 'error', 'message': 'Không đọc được ảnh'}), 400
+        names = recognize_faces(img)
+        return jsonify({'recognized': names}), 200
+    except Exception as e:
+        return jsonify({'status': 'error', 'message': f'Lỗi khi xử lý ảnh: {str(e)}'}), 500
 
 # --- API stream video (nhận diện thời gian thực) ---
 def gen_frames():
@@ -158,17 +154,6 @@ def gen_frames():
         cv2.putText(frame, now_str, (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,255,255), 2)
         cv2.putText(frame, f"So nguoi: {len(faces)}", (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0,0,255), 2)
 
-        # Lưu mỗi 60s
-        if time.time() - start_time >= 60:
-            if recognized_faces:
-                filename = datetime.now().strftime("%Y-%m-%d_%H-%M-%S.xlsx")
-                filepath = os.path.join(logs_dir, filename)
-                df = pd.DataFrame(list(recognized_faces.items()), columns=["Họ và tên", "First Detected"])
-                df.to_excel(filepath, index=False)
-                print(f"✅ Lưu file điểm danh: {filepath}")
-                recognized_faces = {}
-            start_time = time.time()
-
         # Encode frame thành MJPEG
         ret, buffer = cv2.imencode('.jpg', frame)
         frame_bytes = buffer.tobytes()
@@ -182,17 +167,12 @@ def stream():
     return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
 
 def get_db_connection():
-    """Tạo và trả về kết nối đến SQLite database."""
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
 
 @app.route('/api/schedule', methods=['GET'])
 def get_schedule():
-    """
-    API trả về toàn bộ thời khóa biểu từ bảng TIME_TABLE,
-    gồm tên môn học, tên lớp học, thời gian học và ID lớp học.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
@@ -202,7 +182,8 @@ def get_schedule():
             tt.Day_of_week AS day_of_week,
             tt.Start_Time AS start_time,
             tt.End_Time AS end_time,
-            tt.ID_Class AS class_id
+            tt.ID_Class AS class_id,
+            tt.ID AS timetable_id
         FROM Time_Table tt
         LEFT JOIN Subject sub ON tt.ID_Subject = sub.ID
         LEFT JOIN Classes cls ON tt.ID_Class = cls.ID
@@ -211,7 +192,6 @@ def get_schedule():
     rows = cursor.fetchall()
     conn.close()
 
-    # Chuẩn hóa tên ngày
     day_mapping = {
         "thu 2": "Thứ 2",
         "thu 3": "Thứ 3",
@@ -224,27 +204,22 @@ def get_schedule():
 
     schedule_list = []
     for row in rows:
-        # Xử lý trường hợp Day_of_week trống
         day_of_week = row['day_of_week'] if row['day_of_week'] else 'Chưa xác định'
-        # Chuẩn hóa tên ngày
         day_of_week_lower = day_of_week.lower()
         day_of_week = day_mapping.get(day_of_week_lower, day_of_week)
-        # Giữ nguyên Start_Time và End_Time như trong database
         time_str = f"{day_of_week} {row['start_time']}-{row['end_time']}"
         schedule_list.append({
             "subject": row["subject_name"] or "Chưa có môn học",
             "class": row["class_name"] or "Chưa có lớp",
             "time": time_str,
-            "class_id": row["class_id"]
+            "class_id": row["class_id"],
+            "timetable_id": row["timetable_id"]
         })
-    print(f"Dữ liệu từ API: {schedule_list}")  # Debug dữ liệu
+    print(f"Dữ liệu từ API: {schedule_list}")
     return jsonify(schedule_list)
 
 @app.route('/api/class/<int:class_id>/students', methods=['GET'])
 def get_students(class_id):
-    """
-    API trả về danh sách sinh viên từ bảng Student có ID_Class = class_id.
-    """
     conn = get_db_connection()
     cursor = conn.cursor()
     query = """
@@ -266,28 +241,29 @@ def get_students(class_id):
 
 @app.route('/api/save_attendance', methods=['POST'])
 def save_attendance():
-    """
-    API to save attendance data to the database.
-    Expects JSON with class_id, subject, and data (list of {MSV, FullName, Status}).
-    """
     data = request.get_json()
-    if not data or 'class_id' not in data or 'subject' not in data or 'data' not in data:
+    if not data or 'timetable_id' not in data or 'data' not in data:
         return jsonify({'status': 'error', 'message': 'Dữ liệu không hợp lệ'}), 400
 
-    class_id = data['class_id']
-    subject = data['subject']
+    timetable_id = data['timetable_id']
     attendance_data = data['data']
-    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    attendance_date = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+
+    print("Dữ liệu nhận được:", data)
 
     try:
         conn = get_db_connection()
         cursor = conn.cursor()
 
         for record in attendance_data:
+            status = record['Status']
+            if status not in ['Present', 'Absent']:
+                return jsonify({'status': 'error', 'message': 'Giá trị Status không hợp lệ, phải là "Present" hoặc "Absent"'}), 400
+
             cursor.execute("""
-                INSERT INTO Attendance (Class_ID, MSV, Subject, Status, Timestamp)
-                VALUES (?, ?, ?, ?, ?)
-            """, (class_id, record['MSV'], subject, record['Status'], timestamp))
+                INSERT INTO Attendance (ID_TimeTable, MSV, Status, Attendance_Date)
+                VALUES (?, ?, ?, ?)
+            """, (timetable_id, record['MSV'], status, attendance_date))
 
         conn.commit()
         conn.close()
